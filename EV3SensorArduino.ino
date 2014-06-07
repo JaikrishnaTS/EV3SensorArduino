@@ -12,7 +12,6 @@ Note that the program doesn't support AutoID.
 The importance is given to using the minimum resources and getting the sensor into Data Mode as soon as possible. 
 The sensor is acknowledged multiple times and tried to setup in least time.
 This program was originally made to interface the EV3 Sensors with BrickPi.
-This program doesn't support the modes having multiple data sets yet. 
 
 Credits: lawrie(Github) for EV3UARTSensor library that helped me understand the protocol easily. 
 
@@ -51,6 +50,7 @@ EV3 Sensors Mode Data
 #include <SoftwareSerial.h>
 
 bool dat16[] = { 1,1,0,1,1,1,1,0,0,0,1,1,1,1,1,1,1,1,0,0,0,1,0,1 };
+byte setsd[] = { 1,1,1,1,1,1,1,1,1,1,2,3,4,1,1,1,2,4,1,8,4,1,4,2 };
 
 #define   BYTE_ACK                      0x04
 #define   BYTE_NACK                     0x02
@@ -86,11 +86,11 @@ bool dat16[] = { 1,1,0,1,1,1,1,0,0,0,1,1,1,1,1,1,1,1,0,0,0,1,0,1 };
 #define TYPE_SENSOR_EV3_INFRARED_M4    65
 #define TYPE_SENSOR_EV3_INFRARED_M5    66
 
-byte s,l,m,c;
+byte s,l[8],m[8],sets;
 bool setupDone=false;
 bool data16;
 int r;
-byte type = TYPE_SENSOR_EV3_US_M0;
+byte type = TYPE_SENSOR_EV3_GYRO_M3;
 
 SoftwareSerial sensor(14,16);
 
@@ -114,6 +114,7 @@ void setupSensor(){
     mode = type - TYPE_SENSOR_EV3_INFRARED_M0;
   else mode = 0;
   data16 = dat16[type-43];
+  sets = setsd[type-43];
   sensor.begin(2400);
   sensor.write(BYTE_ACK);
   setupDone=false;
@@ -145,12 +146,9 @@ void setupSensor(){
     if(mode != 0){
     sensor.write(CMD_SELECT);
     sensor.write(mode);
-    sensor.write(check(0x00,CMD_SELECT,mode));
+    sensor.write(0xff^CMD_SELECT^mode);
   }
   sensor.write(BYTE_ACK);
-}
-byte check(byte cmd, byte lsb, byte msb){
-  return (0xff^cmd^lsb^msb);
 }
 
 void loop(){
@@ -158,11 +156,19 @@ void loop(){
   if(sensor.available()){
     s = sensor.read();
     if ( (s & CMD_MASK) == CMD_DATA ){
-      l = sensor.read();
-      m = (data16)? sensor.read() : 0;
-      if (sensor.read() == check(s,l,m)){
-        r = (m<<8) | l ;
-        Serial.println(r);
+      byte chk = 0xff^s;
+      for(byte n=0 ; n < sets ; n++ ){
+        l[n] = sensor.read();
+        m[n] = (data16)? sensor.read() : 0;
+        chk = chk^l[n]^m[n];
+      }
+      if (sensor.read() == chk){
+        for(byte n=0 ; n < sets ; n++ ){
+          r = (m[n]<<8) | l[n] ;
+          Serial.print(r);
+          Serial.print(" ");
+        }
+        Serial.println();
       } //else Serial.println("ERROR");
       sensor.flush();
     }
