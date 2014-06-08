@@ -90,7 +90,7 @@ byte s,l[8],m[8],sets;
 bool setupDone=false;
 bool data16;
 int r;
-byte type = TYPE_SENSOR_EV3_GYRO_M3;
+byte type = TYPE_SENSOR_EV3_GYRO_M0;
 
 SoftwareSerial sensor(14,16);
 
@@ -142,13 +142,13 @@ void setupSensor(){
     }
   }
 
-    sensor.write(BYTE_ACK);
+    sensor.write(BYTE_NACK);
     if(mode != 0){
-    sensor.write(CMD_SELECT);
-    sensor.write(mode);
-    sensor.write(0xff^CMD_SELECT^mode);
+      sensor.write(CMD_SELECT);
+      sensor.write(mode);
+      sensor.write(0xff^CMD_SELECT^mode);
   }
-  sensor.write(BYTE_ACK);
+  sensor.write(BYTE_NACK);
 }
 
 void loop(){
